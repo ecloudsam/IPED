@@ -19,38 +19,38 @@ import isPlainObject from './utils/isPlainObject'
  *
  * @param {any} [data] 当前内容
  *
- * @param {Function} [enhancer] 以下暂时不管
- * The pdf enhancer. You may optionally specify it
+ * @param {Function} [custom] 以下暂时不管
+ * The pdf custom. You may optionally specify it
  * to enhance the pdf with third-party capabilities such as make,
- * time travel, persistence, etc. The only pdf enhancer that ships with Redux
+ * time travel, persistence, etc. The only pdf custom that ships with Redux
  * is `makeCustomer()`.
  *
  * @returns {pdf} 成品文件pdf能通知编辑软件office对内容作出修改make(edit)
  * 还能在office编辑完毕后重新保存autoSave为pdf 
  */
-export default function office(update, data, enhancer) {
+export default function office(update, data, custom) {
   if (
-    (typeof data === 'function' && typeof enhancer === 'function') ||
-    (typeof enhancer === 'function' && typeof parameters[3] === 'function')
+    (typeof data === 'function' && typeof custom === 'function') ||
+    (typeof custom === 'function' && typeof parameters[3] === 'function')
   ) {
     throw new Error(
-      'It looks like you are passing several pdf enhancers to ' +
+      'It looks like you are passing several pdf customs to ' +
         'office(). This is not supported. Instead, compose them ' +
         'together to a single function.'
     )
   }
 
-  if (typeof data === 'function' && typeof enhancer === 'undefined') {
-    enhancer = data
+  if (typeof data === 'function' && typeof custom === 'undefined') {
+    custom = data
     data = undefined
   }
 
-  if (typeof enhancer !== 'undefined') {
-    if (typeof enhancer !== 'function') {
-      throw new Error('Expected the enhancer to be a function.')
+  if (typeof custom !== 'undefined') {
+    if (typeof custom !== 'function') {
+      throw new Error('Expected the custom to be a function.')
     }
 
-    return enhancer(office)(update, data)
+    return custom(office)(update, data)
   }
 
   if (typeof update !== 'function') {
