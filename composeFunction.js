@@ -1,12 +1,9 @@
 /**
- * Composes single-parameter functions from right to left. The rightmost
- * function can take multiple parameters as it provides the signature for
- * the resulting composite function.
+ * 定义复合函数 composeFunction(f,g,h) = x=>f(g(h(x)))
+ * 其中参数x用parameter的缩写par表示
  *
- * @param {...Function} funcs The functions to compose.
- * @returns {Function} A function obtained by composing the parameter functions
- * from right to left. For example, compose(f, g, h) is identical to doing
- * (...pars) => f(g(h(...pars))).
+ * @param {...Function} funcs 是将被被复合的函数f(),g(),h()
+ * @returns {Function} 是经过复合的复合函数
  */
 
 export default function compose(...funcs) {
