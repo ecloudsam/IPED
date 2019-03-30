@@ -10,6 +10,9 @@ import isPlainObject from './utils/isPlainObject'
  * pdf=office(data)
  * data=update(data,edit)
  * 
+ * customMake：定制的make()，比如修改文字的同时截个图，即所谓的中间件middleware
+ * office(custom)：office可定制，类似中间件的功能
+ * 
  * 建立一个无法轻易更改内容data的成品文件pdf
  * `make()`是唯一能修改pdf内容的方法
  * 一个应用app应该只有一个成品文件pdf
