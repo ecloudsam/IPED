@@ -1,7 +1,7 @@
 import office from './office'
 import updateCombiner from './updateCombiner'
 import editCreator from './editCreator'
-import applyMiddleware from './applyMiddleware'
+import makeCustomer from './makeCustomer'
 import functionComposer from './functionComposer'
 import warning from './utils/warning'
 import __DO_NOT_USE__editTypes from './utils/editTypes'
@@ -30,7 +30,7 @@ export {
   office,
   updateCombiner,
   editCreator,
-  applyMiddleware,
+  makeCustomer,
   functionComposer,
   __DO_NOT_USE__editTypes
 }

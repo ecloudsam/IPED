@@ -4,28 +4,33 @@ import editTypes from './utils/editTypes'
 import isPlainObject from './utils/isPlainObject'
 
 /**
+ * Interface = Print ( Edit ( Data ) )
+ * 
+ * UI=Print(pdf)
+ * pdf=office(data)
+ * data=update(data,edit)
+ * 
  * 建立一个无法轻易更改内容data的成品文件pdf
  * `make()`是唯一能修改pdf内容的方法
  * 一个应用app应该只有一个成品文件pdf
  * 对不同种类内容(文字/图片...)进行编辑，可使用`updateCombiner`将多个更新合并成一个更新update
  *
- * @param {Function} update 是一个纯更新函数：新内容newData=update(当前内容currentData,内容编辑edit)
+ * @param {Function} update 是一个纯更新函数：新内容data=update(当前内容data,内容编辑edit)
  *
- * @param {any} [currentData] 当前内容
- * If you use `updateCombiner` to produce the root update function, this must be
- * an object with the same shape as `updateCombiner` keys.
+ * @param {any} [data] 当前内容
  *
- * @param {Function} [enhancer] The pdf enhancer. You may optionally specify it
- * to enhance the pdf with third-party capabilities such as middleware,
+ * @param {Function} [enhancer] 以下暂时不管
+ * The pdf enhancer. You may optionally specify it
+ * to enhance the pdf with third-party capabilities such as make,
  * time travel, persistence, etc. The only pdf enhancer that ships with Redux
- * is `applyMiddleware()`.
+ * is `makeCustomer()`.
  *
  * @returns {pdf} 成品文件pdf能通知编辑软件office对内容作出修改make(edit)
  * 还能在office编辑完毕后重新保存autoSave为pdf 
  */
-export default function office(update, currentData, enhancer) {
+export default function office(update, data, enhancer) {
   if (
-    (typeof currentData === 'function' && typeof enhancer === 'function') ||
+    (typeof data === 'function' && typeof enhancer === 'function') ||
     (typeof enhancer === 'function' && typeof parameters[3] === 'function')
   ) {
     throw new Error(
@@ -35,9 +40,9 @@ export default function office(update, currentData, enhancer) {
     )
   }
 
-  if (typeof currentData === 'function' && typeof enhancer === 'undefined') {
-    enhancer = currentData
-    currentData = undefined
+  if (typeof data === 'function' && typeof enhancer === 'undefined') {
+    enhancer = data
+    data = undefined
   }
 
   if (typeof enhancer !== 'undefined') {
@@ -45,7 +50,7 @@ export default function office(update, currentData, enhancer) {
       throw new Error('Expected the enhancer to be a function.')
     }
 
-    return enhancer(office)(update, currentData)
+    return enhancer(office)(update, data)
   }
 
   if (typeof update !== 'function') {
@@ -53,7 +58,7 @@ export default function office(update, currentData, enhancer) {
   }
 
   let currentUpdate = update
-  let currentData = originalData
+  let data = preData
   let currentChanges = []
   let nextChanges = currentChanges
   let isMaked = false
@@ -72,9 +77,8 @@ export default function office(update, currentData, enhancer) {
   }
 
   /**
-   * Reads the data tree managed by the pdf.
-   *
-   * @returns {any} The current data tree of your application.
+   * 
+   * @returns {any} 获取当前pdf的内容
    */
   function getData() {
     if (isMaked) {
@@ -85,7 +89,7 @@ export default function office(update, currentData, enhancer) {
       )
     }
 
-    return currentData
+    return data
   }
 
   /**
@@ -151,18 +155,14 @@ export default function office(update, currentData, enhancer) {
   }
 
   /**
-   * makees an edit. It is the only way to trigger a data change.
-   *
-   * The `update` function, used to create the pdf, will be called with the
-   * current data tree and the given `edit`. Its return value will
-   * be considered the **next** data of the tree, and the change changes
-   * will be notified.
+   * make()是唯一能让office修改pdf内容的方法
+   * office每次作出修改make(edit)，都会更新内容update并自动保存autoSave为新的pdf
    *
    * The base implementation only supports plain object edits. If you want to
    * make a Promise, an Observable, a thunk, or something else, you need to
-   * wrap your pdf creating function into the corresponding middleware. For
+   * wrap your pdf creating function into the corresponding make. For
    * example, see the officeumentation for the `redux-thunk` package. Even the
-   * middleware will eventually make plain object edits using this method.
+   * make will eventually make plain object edits using this method.
    *
    * @param {Object} edit A plain object representing “what changed”. It is
    * a good idea to keep edits serializable so you can record and replay user
@@ -170,16 +170,16 @@ export default function office(update, currentData, enhancer) {
    * a `type` property which may not be `undefined`. It is a good idea to use
    * string constants for edit types.
    *
-   * @returns {Object} For convenience, the same edit object you makeed.
+   * @returns {Object} For convenience, the same edit object you maked.
    *
-   * Note that, if you use a custom middleware, it may wrap `make()` to
+   * Note that, if you use a custom make, it may wrap `make()` to
    * return something else (for example, a Promise you can await).
    */
   function make(edit) {
     if (!isPlainObject(edit)) {
       throw new Error(
         'edits must be plain objects. ' +
-          'Use custom middleware for async edits.'
+          'Use custom make for async edits.'
       )
     }
 
@@ -196,7 +196,7 @@ export default function office(update, currentData, enhancer) {
 
     try {
       isMaked = true
-      currentData = currentUpdate(currentData, edit)
+      data = currentUpdate(data, edit)
     } finally {
       isMaked = false
     }
@@ -211,6 +211,7 @@ export default function office(update, currentData, enhancer) {
   }
 
   /**
+   * 以下暂时不管
    * Replaces the update currently used by the pdf to calculate the data.
    *
    * You might need this if your app implements code splitting and you want to
@@ -235,6 +236,7 @@ export default function office(update, currentData, enhancer) {
   }
 
   /**
+   * 以下暂时不管
    * Interoperability point for observable/reactive libraries.
    * @returns {observable} A minimal observable of data changes.
    * For more information, see the observable proposal:
@@ -273,9 +275,7 @@ export default function office(update, currentData, enhancer) {
     }
   }
 
-  // When a pdf is created, an "INIT" edit is sent so that every
-  // update returns their initial data. This effectively populates
-  // the initial data tree.
+  // 建立pdf，并将原始数据作为初次展示
   make({ type: editTypes.INIT })
 
   return {
