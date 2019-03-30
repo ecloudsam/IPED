@@ -1,8 +1,8 @@
 import office from './office'
-import update from './update'
-import edit from './edit'
+import combineUpdates from './combineUpdates'
+import createEdit from './createEdit'
 import applyMiddleware from './applyMiddleware'
-import compose from './compose'
+import composeFunction from './composeFunction'
 import warning from './utils/warning'
 import __DO_NOT_USE__editTypes from './utils/editTypes'
 
@@ -28,9 +28,9 @@ if (
 
 export {
   office,
-  update,
-  edit,
+  combineUpdates,
+  createEdit,
   applyMiddleware,
-  compose,
+  composeFunction,
   __DO_NOT_USE__editTypes
 }

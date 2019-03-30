@@ -4,14 +4,14 @@ import editTypes from './utils/editTypes'
 import isPlainObject from './utils/isPlainObject'
 
 /**
- * 建立一个包含数据data的不可编辑的成品数据集pdf
- * `send()`是唯一能编辑pdf内数据的方法
+ * 建立一个不可轻易更改内部数据data的成品数据集pdf
+ * `send()`是唯一能更改pdf内数据的方法
  * 一个应用app应该只有一个成品数据集pdf
- * 当要编辑不同位置的数据时，可使用`combineUpdates`将多个更新合并成一个更新update
+ * 若要进行不同种类的数据编辑，可使用`combineUpdates`将多个更新合并成一个更新update
  *
- * @param {Function} update 是一个纯更新函数：新数据newData=update(现数据currentData,编辑edit)
+ * @param {Function} update 是一个纯更新函数：新数据newData=update(当前数据currentData,数据编辑edit)
  *
- * @param {any} [currentData] 初始数据/现数据
+ * @param {any} [currentData] 初始数据/当前数据
  * If you use `combineUpdates` to produce the root update function, this must be
  * an object with the same shape as `combineUpdates` keys.
  *
@@ -20,7 +20,8 @@ import isPlainObject from './utils/isPlainObject'
  * time travel, persistence, etc. The only pdf enhancer that ships with Redux
  * is `applyMiddleware()`.
  *
- * @returns {pdf} 一个成品数据集，能发送编辑请求send/edit给编辑办公室office，也能自我更新
+ * @returns {pdf} 一个成品数据集，能发送编辑请求send/edit给编辑办公室office，还能在检测到数据有改动后
+ * 进行自动更新autoUpdate 
  */
 export default function office(update, currentData, enhancer) {
   if (
@@ -53,20 +54,20 @@ export default function office(update, currentData, enhancer) {
 
   let currentUpdate = update
   let currentData = preData
-  let currentListeners = []
-  let nextListeners = currentListeners
+  let currentChanges = []
+  let nextChanges = currentChanges
   let isSending = false
 
   /**
-   * This makes a shallow copy of currentListeners so we can use
-   * nextListeners as a temporary list while sending.
+   * This makes a shallow copy of currentChanges so we can use
+   * nextChanges as a temporary list while sending.
    *
    * This prevents any bugs around consumers calling
-   * selfUpdate/unSelfUpdate in the middle of a send.
+   * autoUpdate/unAutoUpdate in the middle of a send.
    */
-  function ensureCanMutateNextListeners() {
-    if (nextListeners === currentListeners) {
-      nextListeners = currentListeners.slice()
+  function ensureCanMutatenextChanges() {
+    if (nextChanges === currentChanges) {
+      nextChanges = currentChanges.slice()
     }
   }
 
@@ -88,64 +89,64 @@ export default function office(update, currentData, enhancer) {
   }
 
   /**
-   * Adds a change listener. It will be called any time an edit is sended,
+   * Adds a change change. It will be called any time an edit is sended,
    * and some part of the data tree may potentially have changed. You may then
    * call `getData()` to read the current data tree inside the callback.
    *
-   * You may call `send()` from a change listener, with the following
+   * You may call `send()` from a change change, with the following
    * caveats:
    *
    * 1. The subscriptions are snapshotted just before every `send()` call.
-   * If you selfUpdate or unSelfUpdate while the listeners are being invoked, this
+   * If you autoUpdate or unautoUpdate while the changes are being invoked, this
    * will not have any effect on the `send()` that is currently in progress.
    * However, the next `send()` call, whether nested or not, will use a more
    * recent snapshot of the subscription list.
    *
-   * 2. The listener should not expect to see all data changes, as the data
+   * 2. The change should not expect to see all data changes, as the data
    * might have been editd multiple times during a nested `send()` before
-   * the listener is called. It is, however, guaranteed that all selfUpdaters
+   * the change is called. It is, however, guaranteed that all autoUpdaters
    * registered before the `send()` started will be called with the latest
    * data by the time it exits.
    *
-   * @param {Function} listener A callback to be invoked on every send.
-   * @returns {Function} A function to remove this change listener.
+   * @param {Function} change A callback to be invoked on every send.
+   * @returns {Function} A function to remove this change change.
    */
-  function selfUpdate(listener) {
-    if (typeof listener !== 'function') {
-      throw new Error('Expected the listener to be a function.')
+  function autoUpdate(change) {
+    if (typeof change !== 'function') {
+      throw new Error('Expected the change to be a function.')
     }
 
     if (isSending) {
       throw new Error(
-        'You may not call pdf.selfUpdate() while the update is executing. ' +
-          'If you would like to be notified after the pdf has been editd, selfUpdate from a ' +
+        'You may not call pdf.autoUpdate() while the update is executing. ' +
+          'If you would like to be notified after the pdf has been editd, autoUpdate from a ' +
           'component and invoke pdf.getData() in the callback to access the latest data. ' +
-          'See https://redux.js.org/api-reference/pdf#selfUpdate(listener) for more details.'
+          'See https://redux.js.org/api-reference/pdf#autoUpdate(change) for more details.'
       )
     }
 
-    let isSelfUpdated = true
+    let isAutoUpdated = true
 
-    ensureCanMutateNextListeners()
-    nextListeners.push(listener)
+    ensureCanMutatenextChanges()
+    nextChanges.push(change)
 
-    return function unSelfUpdate() {
-      if (!isSelfUpdated) {
+    return function unAutoUpdate() {
+      if (!isAutoUpdated) {
         return
       }
 
       if (isSending) {
         throw new Error(
-          'You may not unSelfUpdate from a pdf listener while the update is executing. ' +
-            'See https://redux.js.org/api-reference/pdf#selfUpdate(listener) for more details.'
+          'You may not unAutoUpdate from a pdf change while the update is executing. ' +
+            'See https://redux.js.org/api-reference/pdf#autoUpdate(change) for more details.'
         )
       }
 
-      isSelfUpdated = false
+      isAutoUpdated = false
 
-      ensureCanMutateNextListeners()
-      const index = nextListeners.indexOf(listener)
-      nextListeners.splice(index, 1)
+      ensureCanMutatenextChanges()
+      const index = nextChanges.indexOf(change)
+      nextChanges.splice(index, 1)
     }
   }
 
@@ -154,7 +155,7 @@ export default function office(update, currentData, enhancer) {
    *
    * The `update` function, used to create the pdf, will be called with the
    * current data tree and the given `edit`. Its return value will
-   * be considered the **next** data of the tree, and the change listeners
+   * be considered the **next** data of the tree, and the change changes
    * will be notified.
    *
    * The base implementation only supports plain object edits. If you want to
@@ -200,10 +201,10 @@ export default function office(update, currentData, enhancer) {
       isSending = false
     }
 
-    const listeners = (currentListeners = nextListeners)
-    for (let i = 0; i < listeners.length; i++) {
-      const listener = listeners[i]
-      listener()
+    const changes = (currentChanges = nextChanges)
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i]
+      change()
     }
 
     return edit
@@ -240,17 +241,17 @@ export default function office(update, currentData, enhancer) {
    * https://github.com/tc39/proposal-observable
    */
   function observable() {
-    const outerSelfUpdate = selfUpdate
+    const outerAutoUpdate = autoUpdate
     return {
       /**
        * The minimal observable subscription method.
        * @param {Object} observer Any object that can be used as an observer.
        * The observer object should have a `next` method.
-       * @returns {subscription} An object with an `unselfUpdate` method that can
-       * be used to unselfUpdate the observable from the pdf, and prevent further
+       * @returns {subscription} An object with an `unautoUpdate` method that can
+       * be used to unautoUpdate the observable from the pdf, and prevent further
        * emission of values from the observable.
        */
-      selfUpdate(observer) {
+      autoUpdate(observer) {
         if (typeof observer !== 'object' || observer === null) {
           throw new TypeError('Expected the observer to be an object.')
         }
@@ -262,8 +263,8 @@ export default function office(update, currentData, enhancer) {
         }
 
         observeData()
-        const unselfUpdate = outerSelfUpdate(observeData)
-        return { unselfUpdate }
+        const unautoUpdate = outerAutoUpdate(observeData)
+        return { unautoUpdate }
       },
 
       [$$observable]() {
@@ -279,7 +280,7 @@ export default function office(update, currentData, enhancer) {
 
   return {
     send,
-    selfUpdate,
+    autoUpdate,
     getData,
     replaceUpdate,
     [$$observable]: observable
