@@ -13,7 +13,8 @@ import isPlainObject from './utils/isPlainObject'
  * edit..............................dispatch
  * print...............................render
  * 
- * 
+ * content---office--->doc---print--->book
+ * howToEdit+whatToEdit(book)---office.edit(content)--->doc---print--->book
  * 
  * Creates a Redux doc that holds the state tree.
  * The only way to change the data in the doc is to call `edit()` on it.
@@ -39,7 +40,8 @@ import isPlainObject from './utils/isPlainObject'
  * @returns {doc} A Redux doc that lets you read the state, edit whatToEdits
  * and subscribe to changes.
  */
-export default function office(howToEdit, preContent, custom) {
+
+ export default function office(howToEdit, preContent, custom) {
   if (
     (typeof preContent === 'function' && typeof custom === 'function') ||
     (typeof custom === 'function' && typeof arguments[3] === 'function')
