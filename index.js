@@ -1,10 +1,10 @@
 import office from './office'
-import updateCombiner from './updateCombiner'
-import changeCreator from './changeCreator'
-import makeCustomer from './makeCustomer'
-import functionComposer from './functionComposer'
+import combineHowToEdits from './combineHowToEdits'
+import createWhatToEdit from './createWhatToEdit'
+import customEdit from './customEdit'
+import composeFunction from './composeFunction'
 import warning from './utils/warning'
-import __DO_NOT_USE__changeTypes from './utils/changeTypes'
+import __DO_NOT_USE__whatToEditTypes from './utils/whatToEditTypes'
 
 /*
  * This is a dummy function to check if the function name has been altered by minification.
@@ -28,9 +28,9 @@ if (
 
 export {
   office,
-  updateCombiner,
-  changeCreator,
-  makeCustomer,
-  functionComposer,
-  __DO_NOT_USE__changeTypes
+  combineHowToEdits,
+  createWhatToEdit,
+  customEdit,
+  composeFunction,
+  __DO_NOT_USE__whatToEditTypes
 }

@@ -1,52 +1,48 @@
 import $$observable from 'symbol-observable'
 
-import changeTypes from './utils/changeTypes'
+import whatToEditTypes from './utils/whatToEditTypes'
 import isPlainObject from './utils/isPlainObject'
 
 /**
- * Interface = Print ( Edit ( Data ) )
- * Edit = update ( make ( change ) )
- * 
- * UI=Print(pdf)
- * pdf=office(data)
- * data=update(data,change)
- * 
- * customMake：定制的make()，比如修改文字的同时截个图，即所谓的中间件middleware
- * office(custom)：office可定制，类似中间件的功能
- * 
- * 建立一个无法轻易更改内容data的成品文件pdf
- * `make()`是唯一能更改pdf内容的方法
- * 一个应用app应该只有一个成品文件pdf
- * 对不同种类内容(文字/图片...)进行更改后，可使用`updateCombiner`将多个更新合并成一个更新update
+ * Creates a Redux doc that holds the state tree.
+ * The only way to change the data in the doc is to call `edit()` on it.
  *
- * @param {Function} update 是一个纯更新函数：新内容data=update(当前内容data,内容更改change)
+ * There should only be a single doc in your app. To specify how different
+ * parts of the state tree respond to whatToEdits, you may combine several howToEdits
+ * into a single howToEdit function by using `combineHowToEdits`.
  *
- * @param {any} [data] 当前内容
+ * @param {Function} howToEdit A function that returns the next state tree, given
+ * the current state tree and the whatToEdit to handle.
  *
- * @param {Function} [custom] 以下暂时不管
- * The pdf custom. You may optionally specify it
- * to enhance the pdf with third-party capabilities such as make,
- * time travel, persistence, etc. The only pdf custom that ships with Redux
- * is `makeCustomer()`.
+ * @param {any} [preContent] The initial state. You may optionally specify it
+ * to hydrate the state from the server in universal apps, or to redoc a
+ * previously serialized user session.
+ * If you use `combineHowToEdits` to produce the root howToEdit function, this must be
+ * an object with the same shape as `combineHowToEdits` keys.
  *
- * @returns {pdf} 成品文件pdf能通知编辑软件office对内容作出修改make(change)
- * 还能在office编辑完毕后重新保存autoUpdate为pdf 
+ * @param {Function} [custom] The doc custom. You may optionally specify it
+ * to enhance the doc with third-party capabilities such as middleware,
+ * time travel, persistence, etc. The only doc custom that ships with Redux
+ * is `applyMiddleware()`.
+ *
+ * @returns {doc} A Redux doc that lets you read the state, edit whatToEdits
+ * and subscribe to changes.
  */
-export default function office(update, data, custom) {
+export default function office(howToEdit, preContent, custom) {
   if (
-    (typeof data === 'function' && typeof custom === 'function') ||
-    (typeof custom === 'function' && typeof parameters[3] === 'function')
+    (typeof preContent === 'function' && typeof custom === 'function') ||
+    (typeof custom === 'function' && typeof arguments[3] === 'function')
   ) {
     throw new Error(
-      'It looks like you are passing several pdf customs to ' +
+      'It looks like you are passing several doc customs to ' +
         'office(). This is not supported. Instead, compose them ' +
         'together to a single function.'
     )
   }
 
-  if (typeof data === 'function' && typeof custom === 'undefined') {
-    custom = data
-    data = undefined
+  if (typeof preContent === 'function' && typeof custom === 'undefined') {
+    custom = preContent
+    preContent = undefined
   }
 
   if (typeof custom !== 'undefined') {
@@ -54,223 +50,226 @@ export default function office(update, data, custom) {
       throw new Error('Expected the custom to be a function.')
     }
 
-    return custom(office)(update, data)
+    return custom(office)(howToEdit, preContent)
   }
 
-  if (typeof update !== 'function') {
-    throw new Error('Expected the update to be a function.')
+  if (typeof howToEdit !== 'function') {
+    throw new Error('Expected the howToEdit to be a function.')
   }
 
-  let currentUpdate = update
-  let data = preData
-  let currentDiffs = []
-  let nextDiffs = currentDiffs
-  let isMaked = false
+  let currentHowToEdit = howToEdit
+  let currentContent = preContent
+  let currentListeners = []
+  let nextListeners = currentListeners
+  let isEditing = false
 
   /**
-   * This makes a shallow copy of currentDiffs so we can use
-   * nextDiffs as a temporary list while making.
+   * This makes a shallow copy of currentListeners so we can use
+   * nextListeners as a temporary list while editing.
    *
    * This prevents any bugs around consumers calling
-   * autoUpdate/unAutoUpdate in the middle of a make.
+   * subscribe/unsubscribe in the middle of a edit.
    */
-  function ensureCanMutateNextDiffs() {
-    if (nextDiffs === currentDiffs) {
-      nextDiffs = currentDiffs.slice()
+  function ensureCanMutateNextListeners() {
+    if (nextListeners === currentListeners) {
+      nextListeners = currentListeners.slice()
     }
   }
 
   /**
-   * 
-   * @returns {any} 获取当前pdf的内容
+   * Reads the state tree managed by the doc.
+   *
+   * @returns {any} The current state tree of your application.
    */
-  function getData() {
-    if (isMaked) {
+  function getContent() {
+    if (isEditing) {
       throw new Error(
-        'You may not call pdf.getData() while the update is executing. ' +
-          'The update has already received the data as an parameter. ' +
-          'Pass it down from the top update instead of reading it from the pdf.'
+        'You may not call doc.getContent() while the howToEdit is executing. ' +
+          'The howToEdit has already received the state as an argument. ' +
+          'Pass it down from the top howToEdit instead of reading it from the doc.'
       )
     }
 
-    return data
+    return currentContent
   }
 
   /**
-   * Adds a diff diff. It will be called any time an change is maked,
-   * and some part of the data tree may potentially have diff. You may then
-   * call `getData()` to read the current data tree inside the callback.
+   * Adds a change listener. It will be called any time an whatToEdit is edited,
+   * and some part of the state tree may potentially have changed. You may then
+   * call `getContent()` to read the current state tree inside the callback.
    *
-   * You may call `make()` from a diff diff, with the following
+   * You may call `edit()` from a change listener, with the following
    * caveats:
    *
-   * 1. The subscriptions are snapshotted just before every `make()` call.
-   * If you autoUpdate or unAutoUpdate while the diffs are being invoked, this
-   * will not have any effect on the `make()` that is currently in progress.
-   * However, the next `make()` call, whether nested or not, will use a more
+   * 1. The subscriptions are snapshotted just before every `edit()` call.
+   * If you subscribe or unsubscribe while the listeners are being invoked, this
+   * will not have any effect on the `edit()` that is currently in progress.
+   * However, the next `edit()` call, whether nested or not, will use a more
    * recent snapshot of the subscription list.
    *
-   * 2. The diff should not expect to see all data diffs, as the data
-   * might have been changed multiple times during a nested `make()` before
-   * the diff is called. It is, however, guaranteed that all autoUpdaters
-   * registered before the `make()` started will be called with the latest
-   * data by the time it exits.
+   * 2. The listener should not expect to see all state changes, as the state
+   * might have been updated multiple times during a nested `edit()` before
+   * the listener is called. It is, however, guaranteed that all subscribers
+   * registered before the `edit()` started will be called with the latest
+   * state by the time it exits.
    *
-   * @param {Function} diff A callback to be invoked on every make.
-   * @returns {Function} A function to remove this diff diff.
+   * @param {Function} listener A callback to be invoked on every edit.
+   * @returns {Function} A function to remove this change listener.
    */
-  function autoUpdate(diff) {
-    if (typeof diff !== 'function') {
-      throw new Error('Expected the diff to be a function.')
+  function subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new Error('Expected the listener to be a function.')
     }
 
-    if (isMaked) {
+    if (isEditing) {
       throw new Error(
-        'You may not call pdf.autoUpdate() while the update is executing. ' +
-          'If you would like to be notified after the pdf has been changed, autoUpdate from a ' +
-          'component and invoke pdf.getData() in the callback to access the latest data. ' +
-          'See https://redux.js.org/api-reference/pdf#autoUpdate(diff) for more details.'
+        'You may not call doc.subscribe() while the howToEdit is executing. ' +
+          'If you would like to be notified after the doc has been updated, subscribe from a ' +
+          'component and invoke doc.getContent() in the callback to access the latest state. ' +
+          'See https://redux.js.org/api-reference/doc#subscribe(listener) for more details.'
       )
     }
 
-    let isAutoUpdated = true
+    let isSubscribed = true
 
-    ensureCanMutateNextDiffs()
-    nextDiffs.push(diff)
+    ensureCanMutateNextListeners()
+    nextListeners.push(listener)
 
-    return function unAutoUpdate() {
-      if (!isAutoUpdated) {
+    return function unsubscribe() {
+      if (!isSubscribed) {
         return
       }
 
-      if (isMaked) {
+      if (isEditing) {
         throw new Error(
-          'You may not unAutoUpdate from a pdf diff while the update is executing. ' +
-            'See https://redux.js.org/api-reference/pdf#autoUpdate(diff) for more details.'
+          'You may not unsubscribe from a doc listener while the howToEdit is executing. ' +
+            'See https://redux.js.org/api-reference/doc#subscribe(listener) for more details.'
         )
       }
 
-      isautoUpdated = false
+      isSubscribed = false
 
-      ensureCanMutateNextDiffs()
-      const index = nextDiffs.indexOf(diff)
-      nextDiffs.splice(index, 1)
+      ensureCanMutateNextListeners()
+      const index = nextListeners.indexOf(listener)
+      nextListeners.splice(index, 1)
     }
   }
 
   /**
-   * make()是唯一能让office修改pdf内容的方法
-   * office每次作出修改make(change)，都会自动更新autoUpdate成新的pdf
+   * edites an whatToEdit. It is the only way to trigger a state change.
    *
-   * The base implementation only supports plain object changes. If you want to
-   * make a Promise, an Observable, a thunk, or something else, you need to
-   * wrap your pdf creating function into the corresponding make. For
-   * example, see the `redux-thunk` package. Even the
-   * make will eventually make plain object changes using this method.
+   * The `howToEdit` function, used to create the doc, will be called with the
+   * current state tree and the given `whatToEdit`. Its return value will
+   * be considered the **next** state of the tree, and the change listeners
+   * will be notified.
    *
-   * @param {Object} change A plain object representing “what diffd”. It is
-   * a good idea to keep changes serializable so you can record and replay user
-   * sessions, or use the time travelling `redux-devtools`. An change must have
+   * The base implementation only supports plain object whatToEdits. If you want to
+   * edit a Promise, an Observable, a thunk, or something else, you need to
+   * wrap your doc creating function into the corresponding middleware. For
+   * example, see the documentation for the `redux-thunk` package. Even the
+   * middleware will eventually edit plain object whatToEdits using this method.
+   *
+   * @param {Object} whatToEdit A plain object representing “what changed”. It is
+   * a good idea to keep whatToEdits serializable so you can record and replay user
+   * sessions, or use the time travelling `redux-devtools`. An whatToEdit must have
    * a `type` property which may not be `undefined`. It is a good idea to use
-   * string constants for change types.
+   * string constants for whatToEdit types.
    *
-   * @returns {Object} For convenience, the same change object you maked.
+   * @returns {Object} For convenience, the same whatToEdit object you edited.
    *
-   * Note that, if you use a custom make, it may wrap `make()` to
+   * Note that, if you use a custom middleware, it may wrap `edit()` to
    * return something else (for example, a Promise you can await).
    */
-  function make(change) {
-    if (!isPlainObject(change)) {
+  function edit(whatToEdit) {
+    if (!isPlainObject(whatToEdit)) {
       throw new Error(
-        'changes must be plain objects. ' +
-          'Use custom make for async changes.'
+        'whatToEdits must be plain objects. ' +
+          'Use custom middleware for async whatToEdits.'
       )
     }
 
-    if (typeof change.type === 'undefined') {
+    if (typeof whatToEdit.type === 'undefined') {
       throw new Error(
-        'changes may not have an undefined "type" property. ' +
+        'whatToEdits may not have an undefined "type" property. ' +
           'Have you misspelled a constant?'
       )
     }
 
-    if (isMaked) {
-      throw new Error('updates may not make changes.')
+    if (isEditing) {
+      throw new Error('howToEdits may not edit whatToEdits.')
     }
 
     try {
-      isMaked = true
-      data = currentUpdate(data, change)
+      isEditing = true
+      currentContent = currentHowToEdit(currentContent, whatToEdit)
     } finally {
-      isMaked = false
+      isEditing = false
     }
 
-    const diffs = (currentDiffs = nextDiffs)
-    for (let i = 0; i < diffs.length; i++) {
-      const diff = diffs[i]
-      diff()
+    const listeners = (currentListeners = nextListeners)
+    for (let i = 0; i < listeners.length; i++) {
+      const listener = listeners[i]
+      listener()
     }
 
-    return change
+    return whatToEdit
   }
 
   /**
-   * 以下暂时不管
-   * Replaces the update currently used by the pdf to calculate the data.
+   * Replaces the howToEdit currently used by the doc to calculate the state.
    *
    * You might need this if your app implements code splitting and you want to
-   * load some of the updates dynamically. You might also need this if you
+   * load some of the howToEdits dynamically. You might also need this if you
    * implement a hot reloading mechanism for Redux.
    *
-   * @param {Function} nextUpdate The update for the pdf to use instead.
+   * @param {Function} nextHowToEdit The howToEdit for the doc to use instead.
    * @returns {void}
    */
-  function replaceUpdate(nextUpdate) {
-    if (typeof nextUpdate !== 'function') {
-      throw new Error('Expected the nextUpdate to be a function.')
+  function replaceHowToEdit(nextHowToEdit) {
+    if (typeof nextHowToEdit !== 'function') {
+      throw new Error('Expected the nextHowToEdit to be a function.')
     }
 
-    currentUpdate = nextUpdate
+    currentHowToEdit = nextHowToEdit
 
-    // This change has a similiar effect to changeTypes.INIT.
-    // Any updates that existed in both the new and old rootupdate
-    // will receive the previous data. This effectively populates
-    // the new data tree with any relevant data from the old one.
-    make({ type: changeTypes.REPLACE })
+    // This whatToEdit has a similiar effect to whatToEditTypes.INIT.
+    // Any howToEdits that existed in both the new and old roothowToEdit
+    // will receive the previous state. This effectively populates
+    // the new state tree with any relevant data from the old one.
+    edit({ type: whatToEditTypes.REPLACE })
   }
 
   /**
-   * 以下暂时不管
    * Interoperability point for observable/reactive libraries.
-   * @returns {observable} A minimal observable of data diffs.
+   * @returns {observable} A minimal observable of state changes.
    * For more information, see the observable proposal:
    * https://github.com/tc39/proposal-observable
    */
   function observable() {
-    const outerAutoUpdate = autoUpdate
+    const outerSubscribe = subscribe
     return {
       /**
        * The minimal observable subscription method.
        * @param {Object} observer Any object that can be used as an observer.
        * The observer object should have a `next` method.
-       * @returns {subscription} An object with an `unAutoUpdate` method that can
-       * be used to unAutoUpdate the observable from the pdf, and prevent further
+       * @returns {subscription} An object with an `unsubscribe` method that can
+       * be used to unsubscribe the observable from the doc, and prevent further
        * emission of values from the observable.
        */
-      autoUpdate(observer) {
+      subscribe(observer) {
         if (typeof observer !== 'object' || observer === null) {
           throw new TypeError('Expected the observer to be an object.')
         }
 
-        function observeData() {
+        function observeState() {
           if (observer.next) {
-            observer.next(getData())
+            observer.next(getContent())
           }
         }
 
-        observeData()
-        const unAutoUpdate = outerAutoUpdate(observeData)
-        return { unAutoUpdate }
+        observeState()
+        const unsubscribe = outerSubscribe(observeState)
+        return { unsubscribe }
       },
 
       [$$observable]() {
@@ -279,14 +278,16 @@ export default function office(update, data, custom) {
     }
   }
 
-  // 建立pdf，并将原始数据作为初次展示
-  make({ type: changeTypes.INIT })
+  // When a doc is created, an "INIT" whatToEdit is edited so that every
+  // howToEdit returns their initial state. This effectively populates
+  // the initial state tree.
+  edit({ type: whatToEditTypes.INIT })
 
   return {
-    make,
-    autoUpdate,
-    getData,
-    replaceUpdate,
+    edit,
+    subscribe,
+    getContent,
+    replaceHowToEdit,
     [$$observable]: observable
   }
 }
