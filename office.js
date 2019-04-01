@@ -14,7 +14,9 @@ import isPlainObject from './utils/isPlainObject'
  * print...............................render
  * 
  * content---office--->doc---print--->book
- * howToEdit+whatToEdit(book)---office.edit(content)--->doc---print--->book
+ * howToEdit(whatToEdit(book))---office.edit(content)--->doc---print--->book
+ * 
+ * 
  * 
  * Creates a Redux doc that holds the state tree.
  * The only way to change the data in the doc is to call `edit()` on it.
