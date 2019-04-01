@@ -16,11 +16,11 @@ function getUndefinedStateErrorMessage(key, whatToEdit) {
 
 function getUnexpectedStateShapeWarningMessage(
   inputState,
-  howToEdits,
+  howToEdit,
   whatToEdit,
   unexpectedKeyCache
 ) {
-  const howToEditKeys = Object.keys(howToEdits)
+  const howToEditKeys = Object.keys(howToEdit)
   const argumentName =
     whatToEdit && whatToEdit.type === whatToEditTypes.INIT
       ? 'preContent argument passed to office'
@@ -29,7 +29,7 @@ function getUnexpectedStateShapeWarningMessage(
   if (howToEditKeys.length === 0) {
     return (
       'doc does not have a valid howToEdit. Make sure the argument passed ' +
-      'to combinehowToEdits is an object whose values are howToEdits.'
+      'to combineHowToEdit is an object whose values are howToEdit.'
     )
   }
 
@@ -43,7 +43,7 @@ function getUnexpectedStateShapeWarningMessage(
   }
 
   const unexpectedKeys = Object.keys(inputState).filter(
-    key => !howToEdits.hasOwnProperty(key) && !unexpectedKeyCache[key]
+    key => !howToEdit.hasOwnProperty(key) && !unexpectedKeyCache[key]
   )
 
   unexpectedKeys.forEach(key => {
@@ -62,9 +62,9 @@ function getUnexpectedStateShapeWarningMessage(
   }
 }
 
-function assertHowToEditShape(howToEdits) {
-  Object.keys(howToEdits).forEach(key => {
-    const howToEdit = howToEdits[key]
+function assertHowToEdithape(howToEdit) {
+  Object.keys(howToEdit).forEach(key => {
+    const howToEdit = howToEdit[key]
     const initialState = howToEdit(undefined, { type: whatToEditTypes.INIT })
 
     if (typeof initialState === 'undefined') {
@@ -102,9 +102,9 @@ function assertHowToEditShape(howToEdits) {
  * into a single state object, whose keys correspond to the keys of the passed
  * howToEdit functions.
  *
- * @param {Object} howToEdits An object whose values correspond to different
+ * @param {Object} howToEdit An object whose values correspond to different
  * howToEdit functions that need to be combined into one. One handy way to obtain
- * it is to use ES6 `import * as howToEdits` syntax. The howToEdits may never return
+ * it is to use ES6 `import * as howToEdit` syntax. The howToEdit may never return
  * undefined for any whatToEdit. Instead, they should return their initial state
  * if the state passed to them was undefined, and the current state for any
  * unrecognized whatToEdit.
@@ -112,23 +112,23 @@ function assertHowToEditShape(howToEdits) {
  * @returns {Function} A howToEdit function that invokes every howToEdit inside the
  * passed object, and builds a state object with the same shape.
  */
-export default function combinehowToEdits(howToEdits) {
-  const howToEditKeys = Object.keys(howToEdits)
-  const finalhowToEdits = {}
+export default function combineHowToEdit(howToEdit) {
+  const howToEditKeys = Object.keys(howToEdit)
+  const finalHowToEdit = {}
   for (let i = 0; i < howToEditKeys.length; i++) {
     const key = howToEditKeys[i]
 
     if (process.env.NODE_ENV !== 'production') {
-      if (typeof howToEdits[key] === 'undefined') {
+      if (typeof howToEdit[key] === 'undefined') {
         warning(`No howToEdit provided for key "${key}"`)
       }
     }
 
-    if (typeof howToEdits[key] === 'function') {
-      finalhowToEdits[key] = howToEdits[key]
+    if (typeof howToEdit[key] === 'function') {
+      finalHowToEdit[key] = howToEdit[key]
     }
   }
-  const finalhowToEditKeys = Object.keys(finalhowToEdits)
+  const finalHowToEditKeys = Object.keys(finalHowToEdit)
 
   // This is used to make sure we don't warn about the same
   // keys multiple times.
@@ -139,7 +139,7 @@ export default function combinehowToEdits(howToEdits) {
 
   let shapeAssertionError
   try {
-    assertHowToEditShape(finalhowToEdits)
+    assertHowToEdithape(finalHowToEdit)
   } catch (e) {
     shapeAssertionError = e
   }
@@ -152,7 +152,7 @@ export default function combinehowToEdits(howToEdits) {
     if (process.env.NODE_ENV !== 'production') {
       const warningMessage = getUnexpectedStateShapeWarningMessage(
         state,
-        finalhowToEdits,
+        finalHowToEdit,
         whatToEdit,
         unexpectedKeyCache
       )
@@ -163,9 +163,9 @@ export default function combinehowToEdits(howToEdits) {
 
     let hasChanged = false
     const nextState = {}
-    for (let i = 0; i < finalhowToEditKeys.length; i++) {
-      const key = finalhowToEditKeys[i]
-      const howToEdit = finalhowToEdits[key]
+    for (let i = 0; i < finalHowToEditKeys.length; i++) {
+      const key = finalHowToEditKeys[i]
+      const howToEdit = finalHowToEdit[key]
       const previousStateForKey = state[key]
       const nextStateForKey = howToEdit(previousStateForKey, whatToEdit)
       if (typeof nextStateForKey === 'undefined') {

@@ -1,5 +1,5 @@
 import office from './office'
-import combineHowToEdits from './combineHowToEdits'
+import combineHowToEdit from './combineHowToEdit'
 import createWhatToEdit from './createWhatToEdit'
 import customEdit from './customEdit'
 import composeFunction from './composeFunction'
@@ -28,7 +28,7 @@ if (
 
 export {
   office,
-  combineHowToEdits,
+  combineHowToEdit,
   createWhatToEdit,
   customEdit,
   composeFunction,
