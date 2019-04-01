@@ -8,8 +8,8 @@ import isPlainObject from './utils/isPlainObject'
  * doc..................................store
  * content..............................state
  * custom............................enhancer
- * whatToEdit.........................reducer
- * howToEdit...........................action
+ * whatToEdit..........................action
+ * howToEdit..........................reducer
  * edit..............................dispatch
  * print...............................render
  * 
