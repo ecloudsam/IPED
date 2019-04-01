@@ -4,6 +4,17 @@ import whatToEditTypes from './utils/whatToEditTypes'
 import isPlainObject from './utils/isPlainObject'
 
 /**
+ * office.........................createStore
+ * doc..................................store
+ * content..............................state
+ * custom............................enhancer
+ * whatToEdit.........................reducer
+ * howToEdit...........................action
+ * edit..............................dispatch
+ * print...............................render
+ * 
+ * 
+ * 
  * Creates a Redux doc that holds the state tree.
  * The only way to change the data in the doc is to call `edit()` on it.
  *
